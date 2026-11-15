@@ -414,7 +414,10 @@ if (!firebaseConfig || !firebaseConfig.apiKey) {
         say(`<button id="bSignIn">Sign in with Google to sync</button><span>Data stays in this browser until you sign in</span>`);
         document.getElementById("bSignIn").onclick = signIn;
       } else {
-        say(`<span>${txt}</span><span>· ${name.replace(/[<>&]/g, "")}</span><button id="bSignOut" style="min-height:36px;padding:4px 12px;font-size:14px">Sign out</button>`);
+        let showName = false; try { showName = localStorage.getItem("wardogs-show-name") === "1"; } catch (e) {}
+        const sm = "min-height:36px;padding:4px 12px;font-size:14px";
+        say(`<span>${txt}</span>${showName ? `<span>· ${name.replace(/[<>&]/g, "")}</span>` : ""}<button id="bName" style="${sm}" aria-pressed="${showName}">${showName ? "Hide name" : "Show name"}</button><button id="bSignOut" style="${sm}">Sign out</button>`);
+        document.getElementById("bName").onclick = () => { try { localStorage.setItem("wardogs-show-name", showName ? "0" : "1"); } catch (e) {} show(txt); };
         document.getElementById("bSignOut").onclick = () => A.signOut(auth);
       }
     };
