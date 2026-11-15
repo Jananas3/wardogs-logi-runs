@@ -86,6 +86,8 @@ details td button{min-height:36px;padding:4px 10px;font-size:13px}
 .noteBox .lbl{font-size:14px;color:var(--mute);margin-bottom:8px}
 .noteBox input{width:100%;font:16px Saira,sans-serif;min-height:44px;padding:8px 12px;border-radius:8px;border:2px solid var(--btnLine);background:var(--btn);color:var(--ink)}
 .noteBox input:focus{outline:3px solid var(--acc)}
+.endBox{border-color:var(--ink)}
+.res{min-width:72px;min-height:52px;font-size:17px}
 .chip{min-height:38px;padding:4px 12px;font-size:14px;border-radius:999px}
 td.nt{white-space:normal;text-align:left;max-width:240px;color:var(--mute)}
 td.nt button{min-height:32px;padding:2px 10px;font-size:13px}
@@ -139,6 +141,13 @@ td.nt button{min-height:32px;padding:2px 10px;font-size:13px}
       <button class="die wide" id="bDie">Died — reset streak</button>
       <button class="small" id="bUndo">↶ Undo last tap</button>
       <button class="end" id="bEnd">■ End session</button>
+    </div>
+    <div class="noteBox endBox hide" id="endBox">
+      <div class="lbl">How did the match end for your team?</div>
+      <div class="row" style="margin:0">
+        <button class="res" data-end="1">1st</button><button class="res" data-end="2">2nd</button><button class="res" data-end="3">3rd</button><button class="res" data-end="left">Left early</button><button id="bEndCancel">Cancel</button>
+      </div>
+      <p class="note" id="endNote" style="margin:8px 0 0"></p>
     </div>
     <div class="noteBox hide" id="noteBox">
       <div class="lbl" id="noteLbl">What got you? (optional)</div>
@@ -269,15 +278,15 @@ function renderHist(){
   $("ranges").innerHTML=[["today","Today"],["7","7 days"],["30","30 days"],["all","All time"]].map(([k,l])=>`<button data-r="${k}" class="${range===k?"on":""}">${l}</button>`).join("");
   const S=sessions(),a=agg(S);
   $("hStats").innerHTML=[["Total XP",a.xp.toLocaleString()],["Sessions",S.length],["Trips done",a.ok.length],["Deaths",a.deaths],
-    ["Avg trip",a.avg?fmt(a.avg):"—"],["XP per hour",a.xph?a.xph.toLocaleString():"—"],["Time played",Math.floor(a.dur/36e5)+"h "+Math.round(a.dur%36e5/6e4)+"m"]].map(tile).join("");
+    ["Avg trip",a.avg?fmt(a.avg):"—"],["XP per hour",a.xph?a.xph.toLocaleString():"—"],["Time played",Math.floor(a.dur/36e5)+"h "+Math.round(a.dur%36e5/6e4)+"m"],["Match results",(()=>{const c=k=>S.filter(x=>x.result===k).length;return S.some(x=>x.result)?`<span style="font-size:18px">1st ${c("1")} · 2nd ${c("2")} · 3rd ${c("3")} · left ${c("left")}</span>`:"—"})()]].map(tile).join("");
   const maps=MAPS.map(m=>[m,S.filter(s=>s.map===m)]).filter(([,l])=>l.length);
   $("byMap").innerHTML=maps.length?maps.map(([m,l])=>{const b=agg(l);return`<tr><td data-l="Map"><b>${m}</b></td><td data-l="Sessions">${l.length}</td><td data-l="Trips">${b.ok.length}</td><td data-l="Deaths">${b.deaths}</td><td data-l="Avg trip">${b.avg?fmt(b.avg):"—"}</td><td data-l="Fastest">${b.fast?fmt(b.fast):"—"}</td><td data-l="XP / hour">${b.xph?b.xph.toLocaleString():"—"}</td></tr>`}).join(""):`<tr><td colspan="7" class="empty">No sessions in this range yet.</td></tr>`;
   const days={};S.forEach(s=>{(days[dayKey(s.start)]=days[dayKey(s.start)]||[]).push(s)});
   const keys=Object.keys(days).sort().reverse();
   $("byDay").innerHTML=keys.length?keys.map(k=>{const l=days[k],b=agg(l);
     return`<details data-day="${k}" ${openDays.has(k)?"open":""}><summary><b>${dayLbl(l[0].start)}</b><span>${l.length} session${l.length>1?"s":""} · ${b.xp.toLocaleString()} XP · ${b.ok.length} trips · ${b.deaths} deaths</span></summary>
-    <table class="stack"><thead><tr><th>Time</th><th>Map · team</th><th>Length</th><th>Trips</th><th>Deaths</th><th>XP</th><th></th></tr></thead><tbody>${l.map(s=>{const x=agg([s]);
-      return`<tr><td data-l="Time">${hm(s.start)}${s.live?" (live)":"–"+hm(s.end)}</td><td data-l="Map · team">${ico(s.color,18)}${s.map} · ${NAME[s.color]||""}${s.level?` · Lvl ${s.level}`:""}</td><td data-l="Length">${fmt(x.dur)}</td><td data-l="Trips">${x.ok.length}</td><td data-l="Deaths">${x.deaths}</td><td data-l="XP"><b>${x.xp.toLocaleString()}</b></td><td>${s.live?"":`<button data-del="${s.start}">Delete</button>`}</td></tr>`}).join("")}</tbody></table></details>`}).join(""):`<p class="empty">No sessions in this range yet. Finished sessions land here when you tap “End session”.</p>`;
+    <table class="stack"><thead><tr><th>Time</th><th>Map · team</th><th>Result</th><th>Length</th><th>Trips</th><th>Deaths</th><th>XP</th><th></th></tr></thead><tbody>${l.map(s=>{const x=agg([s]);
+      return`<tr><td data-l="Time">${hm(s.start)}${s.live?" (live)":"–"+hm(s.end)}</td><td data-l="Map · team">${ico(s.color,18)}${s.map} · ${NAME[s.color]||""}${s.level?` · Lvl ${s.level}`:""}</td><td data-l="Result">${s.live?"playing":RES[s.result]||"—"}</td><td data-l="Length">${fmt(x.dur)}</td><td data-l="Trips">${x.ok.length}</td><td data-l="Deaths">${x.deaths}</td><td data-l="XP"><b>${x.xp.toLocaleString()}</b></td><td>${s.live?"":`<button data-del="${s.start}">Delete</button>`}</td></tr>`}).join("")}</tbody></table></details>`}).join(""):`<p class="empty">No sessions in this range yet. Finished sessions land here when you tap “End session”.</p>`;
 }
 
 function tick(){const c=st.cur;$("timer").textContent=c?fmt(Date.now()-c.s):"0:00"}
@@ -303,6 +312,7 @@ function drop(){st.cur.crates.push(crateXp(st.crateN));st.crateN++}
 
 const msg=t=>{$("bMsg").textContent=t};
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const RES={"1":"1st","2":"2nd","3":"3rd",left:"Left early"};
 const CHIPS=["Tank","Infantry","Mine","Air","Ambush","Crashed"];
 let noteIdx=-1;
 function openNote(i){noteIdx=i;const t=st.trips[i];$("noteLbl").textContent=`Trip ${i+1} — what got you? (optional)`;$("noteIn").value=t&&t.note||"";
@@ -315,7 +325,7 @@ let incTs=true;
 function exportObj(){db.cur=st;
   if(!incTs){const all=db.hist.concat(st.map&&st.trips.length?[st]:[]).sort((a,b)=>a.start-b.start);
     return{app:"wardogs-logi-runs",version:2,shareCopy:true,note:"Share copy without timestamps — trip times are durations in seconds.",
-      sessions:all.map(x=>({map:x.map,team:NAME[x.color],...(x.level?{startLevel:x.level}:{}),lengthSec:Math.round(((x.end||Date.now())-x.start)/1000),
+      sessions:all.map(x=>({map:x.map,team:NAME[x.color],...(x.level?{startLevel:x.level}:{}),lengthSec:Math.round(((x.end||Date.now())-x.start)/1000),...(x.result?{matchResult:RES[x.result]}:{}),
         trips:x.trips.map(t=>({durationSec:Math.round((t.e-t.s)/1000),crates:t.crates,roundTripBonus:t.rt,result:t.ok?"delivered":"died",...(t.note?{note:t.note}:{})}))}))}}
   return{app:"wardogs-driver-tracker",version:2,exportedAt:new Date().toISOString(),current:st.map?st:null,last:db.last,sessions:db.hist}}
 function importText(txt){
@@ -326,7 +336,7 @@ function importText(txt){
   const have=new Set(db.hist.map(x=>x.start));if(st.map)have.add(st.start);
   let add=0,dup=0,bad=0;
   list.forEach(x=>{if(!validS(x)){bad++;return}if(have.has(x.start)){dup++;return}
-    fix(x);if(db.del)db.del=db.del.filter(k=>k!==x.start);db.hist.push({map:x.map,color:x.color,start:x.start,...(Number.isInteger(x.level)&&x.level>0?{level:x.level}:{}),end:typeof x.end==="number"?x.end:(x.trips.length?x.trips[x.trips.length-1].e:x.start),trips:x.trips.map(t=>({...t,crates:t.crates.slice(),ok:!!t.ok,...(typeof t.note==="string"?{note:t.note.slice(0,80)}:{note:undefined})}))});have.add(x.start);add++});
+    fix(x);if(db.del)db.del=db.del.filter(k=>k!==x.start);db.hist.push({map:x.map,color:x.color,start:x.start,...(RES[x.result]?{result:x.result}:{}),...(Number.isInteger(x.level)&&x.level>0?{level:x.level}:{}),end:typeof x.end==="number"?x.end:(x.trips.length?x.trips[x.trips.length-1].e:x.start),trips:x.trips.map(t=>({...t,crates:t.crates.slice(),ok:!!t.ok,...(typeof t.note==="string"?{note:t.note.slice(0,80)}:{note:undefined})}))});have.add(x.start);add++});
   const c=o.current;
   if(c&&validS(c)&&!have.has(c.start)){fix(c);if(!st.map){st={...blank(),...c,cur:c.cur&&typeof c.cur.s==="number"?{s:c.cur.s,crates:(c.cur.crates||[]).slice(0,2)}:null};add++}else if(c.trips.length){db.hist.push({map:c.map,color:c.color,start:c.start,end:c.trips[c.trips.length-1].e,trips:c.trips});add++}}
   if(!db.last&&o.last&&COLS[o.last.color])db.last={map:o.last.map,color:o.last.color};
@@ -361,16 +371,17 @@ document.addEventListener("click",e=>{
   if(b.dataset.again){startSession(db.last.map,db.last.color);save();render();return}
   const id=b.id;
   if(id==="startSess")startSession(pick.map,pick.color);
-  else if(id==="bLeave"){push();st.cur={s:Date.now(),crates:[]};closeNote()}
+  else if(id==="bLeave"){push();st.cur={s:Date.now(),crates:[]};closeNote();$("endBox").classList.add("hide")}
   else if(id==="bDrop"){push();drop()}
   else if(id==="bDrop2"){push();drop();drop()}
   else if(id==="bBack"){push();const rt=rtXp(st.rtN);st.rtN++;st.trips.push({...st.cur,e:Date.now(),rt,ok:true});st.cur=null}
   else if(id==="bDie"){push();const c=st.cur||{s:Date.now(),crates:[]};st.trips.push({...c,e:Date.now(),rt:0,ok:false});st.cur=null;st.crateN=0;st.rtN=0;openNote(st.trips.length-1)}
   else if(id==="bUndo"){if(undo.length)st=JSON.parse(undo.pop());closeNote()}
-  else if(id==="bEnd"){
-    if(!arm(b,"Tap again to end",()=>{
-      if(st.trips.length)db.hist.push({map:st.map,color:st.color,start:st.start,end:Date.now(),trips:st.trips,...(st.level?{level:st.level}:{})});
-      st=blank();undo=[];closeNote();}))return;
+  else if(id==="bEnd"){closeNote();$("endNote").textContent=st.trips.length?"Picking one ends the session and saves it to history.":"No trips logged yet — picking one closes the session without saving it.";$("endBox").classList.remove("hide");$("endBox").scrollIntoView({block:"center",behavior:"smooth"});return}
+  else if(id==="bEndCancel"){$("endBox").classList.add("hide");return}
+  else if(b.dataset.end){
+    if(st.trips.length)db.hist.push({map:st.map,color:st.color,start:st.start,end:Date.now(),trips:st.trips,result:b.dataset.end,...(st.level?{level:st.level}:{})});
+    st=blank();undo=[];closeNote();$("endBox").classList.add("hide");
   }
   else if(id==="bTheme"){theme=THEMES[(THEMES.indexOf(theme)+1)%THEMES.length];try{localStorage.setItem("wardogs-theme",theme)}catch(e){}applyTheme();return}
   else if(id==="bExport"){exportFile();return}
