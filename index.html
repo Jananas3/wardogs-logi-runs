@@ -116,6 +116,8 @@ td.nt button{min-height:32px;padding:2px 10px;font-size:13px}
     <div class="row" id="cols"></div>
     <div class="lbl">Streak carried in <span style="opacity:.8">— leave as is if you’re starting fresh</span></div>
     <div class="row" id="streak"></div>
+    <div class="lbl">Driver level at start <span style="opacity:.8">— optional</span></div>
+    <div class="row" id="level"></div>
     <button class="on go" id="startSess" disabled>Start session</button>
   </section>
 
@@ -200,7 +202,7 @@ const dayKey=t=>{const d=new Date(t);return d.getFullYear()+"-"+String(d.getMont
 const dayLbl=t=>new Date(t).toLocaleDateString([],{weekday:"short",day:"numeric",month:"short",year:"numeric"});
 const blank=()=>({map:null,color:null,start:0,crateN:0,rtN:0,cur:null,trips:[]});
 
-let db={cur:blank(),hist:[],last:null},undo=[],pick={map:null,color:null,cn:0,rn:0},range="7",openDays=new Set();
+let db={cur:blank(),hist:[],last:null},undo=[],pick={map:null,color:null,cn:0,rn:0,lv:null},range="7",openDays=new Set();
 try{const v=JSON.parse(localStorage.getItem(KEY));if(v&&v.cur)db=v}catch(e){}
 const fix=s=>{if(s&&s.map==="Bazukarni")s.map="Bakurani"};fix(db.cur);fix(db.last);db.hist.forEach(fix);
 let st=db.cur;
@@ -222,6 +224,9 @@ function renderSetup(){
   $("startSess").disabled=!(pick.map&&pick.color);
   const sp=(k,lbl,v,lo,hi)=>`<div class="step"><span>${lbl}</span><button data-st="${k}-" aria-label="Lower ${lbl}" ${v<=lo?"disabled":""}>−</button><b>+${v}</b><button data-st="${k}+" aria-label="Raise ${lbl}" ${v>=hi?"disabled":""}>+</button></div>`;
   $("streak").innerHTML=sp("c","Next crate",crateXp(pick.cn),400,900)+sp("r","Next round trip",rtXp(pick.rn),100,600)+(pick.cn||pick.rn?`<button data-st="0">Reset to fresh</button>`:"");
+  if(pick.lv==null)pick.lv=db.lastLevel||0;
+  const lv=pick.lv;
+  $("level").innerHTML=`<div class="step"><span>Level</span><button data-lv="-5" aria-label="Level minus 5" ${lv<1?"disabled":""}>−5</button><button data-lv="-1" aria-label="Level minus 1" ${lv<1?"disabled":""}>−</button><b>${lv?lv:"not set"}</b><button data-lv="1" aria-label="Level plus 1">+</button><button data-lv="5" aria-label="Level plus 5">+5</button></div>`+(lv?`<button data-lv="0">Clear</button>`:"");
   $("again").innerHTML=db.last?`<button class="on go col" data-again="1">${ico(db.last.color,30)}Start again: ${db.last.map} · ${NAME[db.last.color]}</button>`:"";
 }
 
@@ -231,7 +236,7 @@ function render(){
   $("live").classList.toggle("hide",!has);
   $("logSec").classList.toggle("hide",!has);
   document.documentElement.style.setProperty("--team",COLS[st.color]||"#5bc4f5");
-  $("sessTag").innerHTML=has?`<b>${st.map}</b><span>·</span>${ico(st.color,22)}<b>${NAME[st.color]}</b><span>· started ${hm(st.start)}</span>`:"Pick map and team to begin";
+  $("sessTag").innerHTML=has?`<b>${st.map}</b><span>·</span>${ico(st.color,22)}<b>${NAME[st.color]}</b>${st.level?`<span>· started at</span><b>Lvl ${st.level}</b>`:""}<span>· ${hm(st.start)}</span>`:"Pick map and team to begin";
   if(!has)renderSetup();
   $("state").textContent=!c?"At spawn — load 2 crates":c.crates.length<2?`On the road · ${c.crates.length}/2 crates dropped`:"Both dropped — head back to base";
   $("crates").innerHTML=[0,1].map(i=>c&&c.crates[i]?`<div class="crate done">+${c.crates[i]}</div>`:`<div class="crate">crate</div>`).join("");
@@ -272,7 +277,7 @@ function renderHist(){
   $("byDay").innerHTML=keys.length?keys.map(k=>{const l=days[k],b=agg(l);
     return`<details data-day="${k}" ${openDays.has(k)?"open":""}><summary><b>${dayLbl(l[0].start)}</b><span>${l.length} session${l.length>1?"s":""} · ${b.xp.toLocaleString()} XP · ${b.ok.length} trips · ${b.deaths} deaths</span></summary>
     <table class="stack"><thead><tr><th>Time</th><th>Map · team</th><th>Length</th><th>Trips</th><th>Deaths</th><th>XP</th><th></th></tr></thead><tbody>${l.map(s=>{const x=agg([s]);
-      return`<tr><td data-l="Time">${hm(s.start)}${s.live?" (live)":"–"+hm(s.end)}</td><td data-l="Map · team">${ico(s.color,18)}${s.map} · ${NAME[s.color]||""}</td><td data-l="Length">${fmt(x.dur)}</td><td data-l="Trips">${x.ok.length}</td><td data-l="Deaths">${x.deaths}</td><td data-l="XP"><b>${x.xp.toLocaleString()}</b></td><td>${s.live?"":`<button data-del="${s.start}">Delete</button>`}</td></tr>`}).join("")}</tbody></table></details>`}).join(""):`<p class="empty">No sessions in this range yet. Finished sessions land here when you tap “End session”.</p>`;
+      return`<tr><td data-l="Time">${hm(s.start)}${s.live?" (live)":"–"+hm(s.end)}</td><td data-l="Map · team">${ico(s.color,18)}${s.map} · ${NAME[s.color]||""}${s.level?` · Lvl ${s.level}`:""}</td><td data-l="Length">${fmt(x.dur)}</td><td data-l="Trips">${x.ok.length}</td><td data-l="Deaths">${x.deaths}</td><td data-l="XP"><b>${x.xp.toLocaleString()}</b></td><td>${s.live?"":`<button data-del="${s.start}">Delete</button>`}</td></tr>`}).join("")}</tbody></table></details>`}).join(""):`<p class="empty">No sessions in this range yet. Finished sessions land here when you tap “End session”.</p>`;
 }
 
 function tick(){const c=st.cur;$("timer").textContent=c?fmt(Date.now()-c.s):"0:00"}
@@ -293,7 +298,7 @@ function arm(b,label,fn){
   b.dataset.arm=1;const old=b.textContent;b.textContent=label;
   setTimeout(()=>{if(b.dataset.arm){delete b.dataset.arm;b.textContent=old}},3000);return false;
 }
-function startSession(map,color){st={...blank(),map,color,start:Date.now(),crateN:pick.cn,rtN:pick.rn};undo=[];db.last={map,color};pick={map:null,color:null,cn:0,rn:0}}
+function startSession(map,color){const lv=pick.lv||0;st={...blank(),map,color,start:Date.now(),crateN:pick.cn,rtN:pick.rn,...(lv?{level:lv}:{})};undo=[];db.last={map,color};if(lv)db.lastLevel=lv;pick={map:null,color:null,cn:0,rn:0,lv:null}}
 function drop(){st.cur.crates.push(crateXp(st.crateN));st.crateN++}
 
 const msg=t=>{$("bMsg").textContent=t};
@@ -310,7 +315,7 @@ let incTs=true;
 function exportObj(){db.cur=st;
   if(!incTs){const all=db.hist.concat(st.map&&st.trips.length?[st]:[]).sort((a,b)=>a.start-b.start);
     return{app:"wardogs-logi-runs",version:2,shareCopy:true,note:"Share copy without timestamps — trip times are durations in seconds.",
-      sessions:all.map(x=>({map:x.map,team:NAME[x.color],lengthSec:Math.round(((x.end||Date.now())-x.start)/1000),
+      sessions:all.map(x=>({map:x.map,team:NAME[x.color],...(x.level?{startLevel:x.level}:{}),lengthSec:Math.round(((x.end||Date.now())-x.start)/1000),
         trips:x.trips.map(t=>({durationSec:Math.round((t.e-t.s)/1000),crates:t.crates,roundTripBonus:t.rt,result:t.ok?"delivered":"died",...(t.note?{note:t.note}:{})}))}))}}
   return{app:"wardogs-driver-tracker",version:2,exportedAt:new Date().toISOString(),current:st.map?st:null,last:db.last,sessions:db.hist}}
 function importText(txt){
@@ -321,7 +326,7 @@ function importText(txt){
   const have=new Set(db.hist.map(x=>x.start));if(st.map)have.add(st.start);
   let add=0,dup=0,bad=0;
   list.forEach(x=>{if(!validS(x)){bad++;return}if(have.has(x.start)){dup++;return}
-    fix(x);if(db.del)db.del=db.del.filter(k=>k!==x.start);db.hist.push({map:x.map,color:x.color,start:x.start,end:typeof x.end==="number"?x.end:(x.trips.length?x.trips[x.trips.length-1].e:x.start),trips:x.trips.map(t=>({...t,crates:t.crates.slice(),ok:!!t.ok,...(typeof t.note==="string"?{note:t.note.slice(0,80)}:{note:undefined})}))});have.add(x.start);add++});
+    fix(x);if(db.del)db.del=db.del.filter(k=>k!==x.start);db.hist.push({map:x.map,color:x.color,start:x.start,...(Number.isInteger(x.level)&&x.level>0?{level:x.level}:{}),end:typeof x.end==="number"?x.end:(x.trips.length?x.trips[x.trips.length-1].e:x.start),trips:x.trips.map(t=>({...t,crates:t.crates.slice(),ok:!!t.ok,...(typeof t.note==="string"?{note:t.note.slice(0,80)}:{note:undefined})}))});have.add(x.start);add++});
   const c=o.current;
   if(c&&validS(c)&&!have.has(c.start)){fix(c);if(!st.map){st={...blank(),...c,cur:c.cur&&typeof c.cur.s==="number"?{s:c.cur.s,crates:(c.cur.crates||[]).slice(0,2)}:null};add++}else if(c.trips.length){db.hist.push({map:c.map,color:c.color,start:c.start,end:c.trips[c.trips.length-1].e,trips:c.trips});add++}}
   if(!db.last&&o.last&&COLS[o.last.color])db.last={map:o.last.map,color:o.last.color};
@@ -349,6 +354,7 @@ document.addEventListener("click",e=>{
   if(b.dataset.note){openNote(+b.dataset.note);$("noteBox").scrollIntoView({block:"center",behavior:"smooth"});return}
   if(b.id==="bNoteSave"){saveNote();return}
   if(b.id==="bNoteSkip"){closeNote();return}
+  if(b.dataset.lv){const d=+b.dataset.lv;pick.lv=d===0?0:Math.max(0,Math.min(999,(pick.lv||0)+d));renderSetup();return}
   if(b.dataset.st){const k=b.dataset.st;if(k==="0"){pick.cn=0;pick.rn=0}else{const f=k[0]==="c"?"cn":"rn",max=k[0]==="c"?10:10,d=k[1]==="+"?1:-1;pick[f]=Math.max(0,Math.min(max,pick[f]+d))}renderSetup();return}
   if(b.dataset.r){range=b.dataset.r;renderHist();return}
   if(b.dataset.del){if(!arm(b,"Sure?",()=>{const k=+b.dataset.del;db.hist=db.hist.filter(s=>s.start!==k);(db.del=db.del||[]).push(k)}))return;save();render();return}
@@ -363,7 +369,7 @@ document.addEventListener("click",e=>{
   else if(id==="bUndo"){if(undo.length)st=JSON.parse(undo.pop());closeNote()}
   else if(id==="bEnd"){
     if(!arm(b,"Tap again to end",()=>{
-      if(st.trips.length)db.hist.push({map:st.map,color:st.color,start:st.start,end:Date.now(),trips:st.trips});
+      if(st.trips.length)db.hist.push({map:st.map,color:st.color,start:st.start,end:Date.now(),trips:st.trips,...(st.level?{level:st.level}:{})});
       st=blank();undo=[];closeNote();}))return;
   }
   else if(id==="bTheme"){theme=THEMES[(THEMES.indexOf(theme)+1)%THEMES.length];try{localStorage.setItem("wardogs-theme",theme)}catch(e){}applyTheme();return}
