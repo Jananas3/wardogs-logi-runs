@@ -207,7 +207,7 @@ try{const v=JSON.parse(localStorage.getItem(KEY));if(v&&v.cur)db=v}catch(e){}
 const fix=s=>{if(s&&s.map==="Bazukarni")s.map="Bakurani"};fix(db.cur);fix(db.last);db.hist.forEach(fix);
 let st=db.cur;
 const save=()=>{db.cur=st;db.upd=Date.now();try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){};if(window.WD_onSave)window.WD_onSave(db)};
-window.WD={blank,get:()=>{db.cur=st;return db},load:d=>{db=d;fix(db.cur);fix(db.last);db.hist.forEach(fix);st=db.cur;undo=[];try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){};render()}};
+window.WD={blank,get:()=>{db.cur=st;return db},load:d=>{db=d;pick.lv=null;fix(db.cur);fix(db.last);db.hist.forEach(fix);st=db.cur;undo=[];try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){};render()}};
 const push=()=>{undo.push(JSON.stringify(st));if(undo.length>50)undo.shift()};
 const tSum=t=>t.crates.reduce((a,b)=>a+b,0)+t.rt;
 
@@ -447,11 +447,11 @@ if (!firebaseConfig || !firebaseConfig.apiKey) {
       local.hist.forEach(x => byStart.set(x.start, x));
       remote.forEach(x => { if (!byStart.has(x.start)) byStart.set(x.start, x); });
       synced = new Set(remote.map(x => x.start));
-      let cur = local.cur, last = local.last, upd = local.upd || 0;
-      if (rs && (rs.upd || 0) > upd) { cur = rs.cur || WD.blank(); last = rs.last || last; upd = rs.upd; }
+      let cur = local.cur, last = local.last, upd = local.upd || 0, lastLevel = local.lastLevel || 0;
+      if (rs && (rs.upd || 0) > upd) { cur = rs.cur || WD.blank(); last = rs.last || last; upd = rs.upd; lastLevel = rs.lastLevel || lastLevel; }
       if (!cur || (cur.map && (byStart.has(cur.start) || del.has(cur.start)))) cur = WD.blank();
       const hist = [...byStart.values()].filter(x => !del.has(x.start)).sort((a, b) => a.start - b.start);
-      WD.load({ cur, last, upd, hist, del: [...del] });
+      WD.load({ cur, last, upd, hist, del: [...del], ...(lastLevel ? { lastLevel } : {}) });
     }
 
     async function push() {
@@ -464,7 +464,7 @@ if (!firebaseConfig || !firebaseConfig.apiKey) {
         const ops = [];
         d.hist.forEach(x => { if (!synced.has(x.start)) ops.push(b => b.set(F.doc(sessCol(), String(x.start)), clean(x))); });
         synced.forEach(k => { if (!want.has(k)) ops.push(b => b.delete(F.doc(sessCol(), String(k)))); });
-        ops.push(b => b.set(stateDoc(), clean({ cur: d.cur, last: d.last || null, upd: d.upd || Date.now(), del: d.del || [] })));
+        ops.push(b => b.set(stateDoc(), clean({ cur: d.cur, last: d.last || null, lastLevel: d.lastLevel || 0, upd: d.upd || Date.now(), del: d.del || [] })));
         for (let i = 0; i < ops.length; i += 400) {
           const b = F.writeBatch(fs);
           ops.slice(i, i + 400).forEach(f => f(b));
